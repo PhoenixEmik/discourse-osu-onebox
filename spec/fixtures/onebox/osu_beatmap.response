@@ -1,0 +1,33 @@
+{
+  "id": 1697518,
+  "title": "TOKONOMA Strider",
+  "title_unicode": "TOKONOMA Strider",
+  "artist": "Yooh",
+  "artist_unicode": "Yooh",
+  "creator": "Nathan",
+  "user_id": 4842555,
+  "status": "ranked",
+  "covers": {
+    "cover": "https://assets.ppy.sh/beatmaps/1697518/covers/cover.jpg?1643000000",
+    "cover@2x": "https://assets.ppy.sh/beatmaps/1697518/covers/cover@2x.jpg?1643000000",
+    "card": "https://assets.ppy.sh/beatmaps/1697518/covers/card.jpg?1643000000",
+    "list": "https://assets.ppy.sh/beatmaps/1697518/covers/list.jpg?1643000000"
+  },
+  "beatmaps": [
+    {
+      "id": 3468147,
+      "beatmapset_id": 1697518,
+      "difficulty_rating": 6.23,
+      "mode": "osu",
+      "status": "ranked",
+      "total_length": 210,
+      "version": "Extra",
+      "accuracy": 8.5,
+      "ar": 9.2,
+      "bpm": 180.0,
+      "cs": 4.0,
+      "drain": 6.0,
+      "max_combo": 1234
+    }
+  ]
+}

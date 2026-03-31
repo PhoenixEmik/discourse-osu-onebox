@@ -1,0 +1,7 @@
+plugins:
+  osu_onebox_client_id:
+    default: ""
+    secret: true
+  osu_onebox_client_secret:
+    default: ""
+    secret: true
