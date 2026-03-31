@@ -32,22 +32,20 @@ after_initialize do
         "svg" => ((existing.dig(:attributes, "svg") || []) + %w[preserveAspectRatio xmlns]).uniq,
       )
 
-    # Replace the transformer that strips unknown SVG children so polyline is kept
-    patched_transformers =
-      (existing[:transformers] || []).map do |t|
-        # Identify the SVG child-stripping transformer by inspecting its source
-        if t.respond_to?(:source_location) && t.source_location&.first&.include?("sanitize_config")
-          lambda do |env|
-            next if env[:node_name] != "svg"
-            env[:node].traverse do |node|
-              next if node.element? && %w[svg path polyline use].include?(node.name)
-              node.remove
-            end
-          end
-        else
-          t
+    # Replace the last transformer (the SVG child-stripping one) so polyline is kept.
+    # The ONEBOX config appends [a-link, iframe, svg-strip] after RELAXED's transformers;
+    # the SVG-stripping transformer is always last.
+    svg_transformer =
+      lambda do |env|
+        next if env[:node_name] != "svg"
+        env[:node].traverse do |node|
+          next if node.element? && %w[svg path polyline use].include?(node.name)
+          node.remove
         end
       end
+
+    existing_transformers = existing[:transformers] || []
+    patched_transformers = existing_transformers[0..-2] + [svg_transformer]
 
     new_config =
       Sanitize::Config.freeze_config(
