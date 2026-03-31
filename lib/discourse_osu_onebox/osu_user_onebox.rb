@@ -124,8 +124,8 @@ class Onebox::Engine::OsuUserOnebox
     points =
       data.each_with_index.map do |rank, i|
         x = pad + (i.to_f / (data.length - 1)) * (w - pad * 2)
-        # lower rank number = better = higher on chart (invert y)
-        y = (h - pad) - ((rank.to_f - min_rank) / range) * (h - pad * 2)
+        # lower rank number = better = higher on chart = smaller y in SVG
+        y = pad + ((rank.to_f - min_rank) / range) * (h - pad * 2)
         "#{x.round(1)},#{y.round(1)}"
       end
 
