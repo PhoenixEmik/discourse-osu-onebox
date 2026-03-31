@@ -47,9 +47,6 @@ class Onebox::Engine::OsuUserOnebox
     rank_str = global_rank ? "##{fmt(global_rank.to_i)}" : "Unranked"
     country_rank_str = country_rank ? "##{fmt(country_rank.to_i)}" : "-"
 
-    rank_history = user.dig("rankHistory", "data") || []
-    chart_svg = rank_history_svg(rank_history)
-
     stat_rows = [
       ["Ranked Score", fmt(ranked_score)],
       ["Hit Accuracy", "#{accuracy}%"],
@@ -68,7 +65,7 @@ class Onebox::Engine::OsuUserOnebox
         end
         .join("\n        ")
 
-    rank_history = user.dig("rankHistory", "data") || []
+    rank_history = user.dig("rankHistory", "data") || user.dig("rank_history", "data") || []
     chart_svg = rank_history_svg(rank_history)
 
     header_style = cover_url.present? ? " style=\"background-image: url('#{cover_url}');\"" : ""
