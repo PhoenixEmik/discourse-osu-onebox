@@ -26,6 +26,11 @@ class Onebox::Engine::OsuUserOnebox
     country = CGI.escapeHTML(user.dig("country", "name").to_s)
     country_code = CGI.escapeHTML(user["country_code"].to_s)
     profile_url = Onebox::Helpers.normalize_url_for_output(link)
+    mode = url_match[2] || "osu"
+    country_ranking_url =
+      Onebox::Helpers.normalize_url_for_output(
+        "https://osu.ppy.sh/rankings/#{mode}/performance?country=#{country_code}",
+      )
     flag_url =
       Onebox::Helpers.normalize_url_for_output(
         "https://assets.ppy.sh/old-flags/#{country_code}.png",
@@ -84,7 +89,9 @@ class Onebox::Engine::OsuUserOnebox
                 <a href="#{profile_url}" target="_blank" rel="nofollow ugc noopener">#{username}</a>
               </h3>
               <p class="osu-user-country">
-                <img src="#{flag_url}" width="28" height="18" alt="#{country_code}">#{country}
+                <a href="#{country_ranking_url}" target="_blank" rel="nofollow ugc noopener" class="osu-user-country-link">
+                  <img src="#{flag_url}" width="28" height="18" alt="#{country_code}">#{country}
+                </a>
                 <span class="osu-user-country-rank">#{CGI.escapeHTML(country_rank_str)}</span>
               </p>
               <p class="osu-user-pp">

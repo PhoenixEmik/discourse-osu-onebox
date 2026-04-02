@@ -392,6 +392,19 @@ aside.onebox.osu-user {
     }
   }
 
+  .osu-user-country-link {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: #8a80a3;
+    text-decoration: none;
+
+    &:hover {
+      color: #e2d4f0;
+      text-decoration: underline;
+    }
+  }
+
   .osu-user-country-rank {
     font-size: 0.95em;
     font-weight: 700;
