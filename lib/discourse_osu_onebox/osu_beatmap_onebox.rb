@@ -38,6 +38,12 @@ class Onebox::Engine::OsuBeatmapOnebox
         beatmapset.dig("covers", "cover").to_s,
       ) if cover_url.blank?
     beatmap_url = Onebox::Helpers.normalize_url_for_output(link)
+    beatmapset_url =
+      Onebox::Helpers.normalize_url_for_output("https://osu.ppy.sh/beatmapsets/#{beatmapset_id}")
+    mapper_url =
+      Onebox::Helpers.normalize_url_for_output(
+        mapper_user_id > 0 ? "https://osu.ppy.sh/users/#{mapper_user_id}" : "",
+      )
 
     stars = beatmap["difficulty_rating"].to_f.round(2)
     bpm = beatmap["bpm"].to_f.round(1)
@@ -62,19 +68,21 @@ class Onebox::Engine::OsuBeatmapOnebox
           <a href="https://osu.ppy.sh" target="_blank" rel="nofollow ugc noopener">osu!</a>
         </header>
         <div class="onebox-body">
-          <a href="#{beatmap_url}" target="_blank" rel="nofollow ugc noopener" class="osu-beatmap-card">
-            <div class="osu-beatmap-cover" style="#{bg_style}">
-              <div class="osu-beatmap-status-row">
-                <span class="osu-beatmap-status osu-beatmap-status--#{CGI.escapeHTML(status)}">#{status_label}</span>
+          <div class="osu-beatmap-card">
+            <a href="#{beatmap_url}" target="_blank" rel="nofollow ugc noopener" class="osu-beatmap-cover-link">
+              <div class="osu-beatmap-cover" style="#{bg_style}">
+                <div class="osu-beatmap-status-row">
+                  <span class="osu-beatmap-status osu-beatmap-status--#{CGI.escapeHTML(status)}">#{status_label}</span>
+                </div>
               </div>
-            </div>
+            </a>
             <div class="osu-beatmap-info">
               <div class="osu-beatmap-meta-row">
                 <div class="osu-beatmap-title-block">
-                  <h3>#{artist} - #{title}</h3>
+                  <h3><a href="#{beatmapset_url}" target="_blank" rel="nofollow ugc noopener">#{artist} - #{title}</a></h3>
                   <p class="osu-beatmap-version">[#{version}]</p>
                   <p class="osu-beatmap-meta">
-                    #{mapper_avatar_url.present? ? "<img src=\"#{mapper_avatar_url}\" class=\"osu-mapper-avatar\" width=\"25\" height=\"25\" alt=\"#{creator}\">" : ""}mapped by <span class="osu-beatmap-mapper">#{creator}</span>
+                    #{mapper_avatar_url.present? ? "<a href=\"#{mapper_url}\" target=\"_blank\" rel=\"nofollow ugc noopener\"><img src=\"#{mapper_avatar_url}\" class=\"osu-mapper-avatar\" width=\"25\" height=\"25\" alt=\"#{creator}\"></a>" : ""}mapped by <a href="#{mapper_url}" target="_blank" rel="nofollow ugc noopener" class="osu-beatmap-mapper">#{creator}</a>
                   </p>
                 </div>
                 <div class="osu-beatmap-stats-row">
@@ -124,7 +132,7 @@ class Onebox::Engine::OsuBeatmapOnebox
                 </div>
               </div>
             </div>
-          </a>
+          </div>
         </div>
       </aside>
     HTML

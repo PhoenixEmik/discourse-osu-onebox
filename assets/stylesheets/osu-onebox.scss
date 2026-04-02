@@ -34,14 +34,16 @@ aside.onebox.osu-user {
   // Whole card is a link — no default link styling inside
   .osu-beatmap-card {
     display: block;
-    text-decoration: none;
-    color: inherit;
     background: #12121e;
+  }
+
+  .osu-beatmap-cover-link {
+    display: block;
+    text-decoration: none;
 
     &:hover,
     &:focus {
       text-decoration: none;
-      color: inherit;
       outline: none;
     }
   }
@@ -136,8 +138,17 @@ aside.onebox.osu-user {
       margin: 0 0 2px;
       font-size: 0.88em;
       font-weight: 700;
-      color: #e2d4f0;
       line-height: 1.3;
+
+      a {
+        color: #e2d4f0;
+        text-decoration: none;
+
+        &:hover {
+          color: #ff79c6;
+          text-decoration: underline;
+        }
+      }
     }
 
     .osu-beatmap-version {
@@ -169,6 +180,12 @@ aside.onebox.osu-user {
     .osu-beatmap-mapper {
       color: #c9a8e0;
       font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        color: #ff79c6;
+        text-decoration: underline;
+      }
     }
   }
 
