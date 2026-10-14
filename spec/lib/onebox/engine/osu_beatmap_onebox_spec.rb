@@ -2,7 +2,7 @@
 
 RSpec.describe Onebox::Engine::OsuBeatmapOnebox do
   def fixture(filename)
-    file = "#{Rails.root}/plugins/discourse-osu-onebox/spec/fixtures/onebox/#{filename}.response"
+    file = File.join(DiscourseOsuOnebox::PLUGIN_ROOT, "spec/fixtures/onebox/#{filename}.response")
     File.read(file)
   end
 
@@ -11,6 +11,7 @@ RSpec.describe Onebox::Engine::OsuBeatmapOnebox do
   let(:token_url) { "https://osu.ppy.sh/oauth/token" }
 
   before do
+    allow(Discourse).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
     SiteSetting.osu_onebox_client_id = "client123"
     SiteSetting.osu_onebox_client_secret = "secret456"
     stub_request(:post, token_url).to_return(
@@ -23,6 +24,16 @@ RSpec.describe Onebox::Engine::OsuBeatmapOnebox do
   let(:html) { described_class.new(beatmap_link).to_html }
 
   describe ".matches_path" do
+    it "matches trailing slashes" do
+      expect(described_class.matches_path("/beatmapsets/1697518/")).to eq(true)
+    end
+
+    it "rejects extra segments and newlines" do
+      ["/beatmapsets/1697518/extra", "/beatmapsets/1697518\n"].each do |path|
+        expect(described_class.matches_path(path)).to eq(false)
+      end
+    end
+
     it "matches beatmapsets path" do
       expect(described_class.matches_path("/beatmapsets/1697518")).to eq(true)
     end
@@ -33,6 +44,82 @@ RSpec.describe Onebox::Engine::OsuBeatmapOnebox do
   end
 
   describe "#to_html" do
+    context "with multiple difficulties and modes" do
+      before do
+        data = MultiJson.load(fixture("osu_beatmap"))
+        data["beatmaps"] << data["beatmaps"].first.merge(
+          "id" => 2,
+          "difficulty_rating" => 8.0,
+          "version" => "Harder osu difficulty",
+        )
+        data["beatmaps"] << data["beatmaps"].first.merge(
+          "id" => 3,
+          "mode" => "mania",
+          "difficulty_rating" => 9.0,
+          "version" => "Mania difficulty",
+        )
+        stub_request(:get, beatmapset_api_url).to_return(status: 200, body: MultiJson.dump(data))
+      end
+
+      it "selects the requested difficulty even when another has more stars" do
+        expect(html).to include("[Extra]")
+        expect(html).not_to include("Harder osu difficulty", "Mania difficulty")
+      end
+
+      it "selects the hardest difficulty in the requested mode" do
+        result = described_class.new("https://osu.ppy.sh/beatmapsets/1697518#osu").to_html
+        expect(result).to include("Harder osu difficulty")
+        expect(result).not_to include("Mania difficulty")
+      end
+
+      it "selects the hardest difficulty when no fragment is given" do
+        result = described_class.new("https://osu.ppy.sh/beatmapsets/1697518/").to_html
+        expect(result).to include("Mania difficulty")
+      end
+
+      it "returns nil for an unavailable difficulty or mode" do
+        %w[osu/999 osu/3 taiko].each do |fragment|
+          expect(
+            described_class.new("https://osu.ppy.sh/beatmapsets/1697518##{fragment}").to_html,
+          ).to be_nil
+        end
+      end
+    end
+
+    it "does not call the API for an invalid fragment" do
+      expect(
+        described_class.new("https://osu.ppy.sh/beatmapsets/1697518#osu/3468147/extra").to_html,
+      ).to be_nil
+      expect(a_request(:get, beatmapset_api_url)).not_to have_been_made
+    end
+
+    it "does not call the API when authentication fails" do
+      stub_request(:post, token_url).to_return(status: 401)
+      expect(html).to be_nil
+      expect(a_request(:get, beatmapset_api_url)).not_to have_been_made
+    end
+
+    it "returns nil on an API error" do
+      stub_request(:get, beatmapset_api_url).to_return(status: 404)
+      expect(html).to be_nil
+    end
+
+    it "returns nil for malformed JSON and unexpected responses" do
+      ["not json", "null", "[]", '{"beatmaps":[]}', '{"beatmaps":[null]}'].each do |body|
+        stub_request(:get, beatmapset_api_url).to_return(status: 200, body: body)
+        expect(described_class.new(beatmap_link).to_html).to be_nil
+      end
+    end
+
+    it "clamps difficulty bar widths to valid percentages" do
+      data = MultiJson.load(fixture("osu_beatmap"))
+      data["beatmaps"].first.merge!("cs" => -1, "ar" => 12)
+      stub_request(:get, beatmapset_api_url).to_return(status: 200, body: MultiJson.dump(data))
+      bars = Nokogiri::HTML5.fragment(html).css(".osu-diff-fill")
+      expect(bars[0]["style"]).to eq("width:0%")
+      expect(bars[3]["style"]).to eq("width:100%")
+    end
+
     it "includes the song title" do
       expect(html).to include("TOKONOMA Strider")
     end

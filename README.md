@@ -25,6 +25,9 @@ https://osu.ppy.sh/users/7562902/osu
 https://osu.ppy.sh/beatmapsets/1697518#osu/3468147
 ```
 
+User URLs support the `osu`, `taiko`, `fruits`, and `mania` modes; omitting the mode defaults to `osu`.
+Beatmapset URLs display the selected difficulty. With only a mode fragment (such as `#mania`), the card displays the hardest difficulty in that mode; without a fragment, it displays the hardest difficulty in the set. An unavailable difficulty leaves the URL unboxed.
+
 ## Installation
 
 1. In your `app.yml`, add the plugin under the `hooks > after_code` section:
@@ -52,8 +55,8 @@ In your Discourse admin panel, go to **Settings → Plugins** and set:
 
 | Setting | Description |
 |---|---|
-| `osu_client_id` | Your osu! OAuth application client ID |
-| `osu_client_secret` | Your osu! OAuth application client secret |
+| `osu_onebox_client_id` | Your osu! OAuth application client ID |
+| `osu_onebox_client_secret` | Your osu! OAuth application client secret |
 
 ## Requirements
 

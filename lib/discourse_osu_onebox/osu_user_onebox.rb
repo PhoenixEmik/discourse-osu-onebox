@@ -10,8 +10,10 @@ class Onebox::Engine::OsuUserOnebox
   always_https
   matches_domain("osu.ppy.sh")
 
+  USER_PATH = %r{\A/users/(\d+)(?:/(osu|taiko|fruits|mania))?/?\z}
+
   def self.matches_path(path)
-    path.match?(%r{^/users/\d+(/\w+)?$})
+    path.match?(USER_PATH)
   end
 
   def to_html
@@ -22,7 +24,10 @@ class Onebox::Engine::OsuUserOnebox
 
     username = CGI.escapeHTML(user["username"].to_s)
     avatar_url = Onebox::Helpers.normalize_url_for_output(user["avatar_url"].to_s)
-    cover_url = Onebox::Helpers.normalize_url_for_output(user["cover_url"].to_s)
+    cover_url =
+      Onebox::Helpers.normalize_url_for_output(
+        (user.dig("cover", "url").presence || user["cover_url"]).to_s,
+      )
     country = CGI.escapeHTML(user.dig("country", "name").to_s)
     country_code = CGI.escapeHTML(user["country_code"].to_s)
     profile_url = Onebox::Helpers.normalize_url_for_output(link)
@@ -73,7 +78,14 @@ class Onebox::Engine::OsuUserOnebox
     rank_history = user.dig("rankHistory", "data") || user.dig("rank_history", "data") || []
     chart_svg = rank_history_svg(rank_history)
 
-    header_style = cover_url.present? ? " style=\"background-image: url('#{cover_url}');\"" : ""
+    header_style =
+      (
+        if cover_url.present?
+          " style=\"background-image: url('#{cover_url}');\""
+        else
+          ""
+        end
+      )
 
     <<~HTML
       <aside class="onebox osu-user">
@@ -118,42 +130,60 @@ class Onebox::Engine::OsuUserOnebox
   end
 
   def rank_history_svg(data)
-    return "" if data.length < 2
+    return "" unless data.is_a?(Array) && data.length >= 2
 
-    w = 360
+    ranks = data.select { |rank| rank.is_a?(Numeric) && rank.finite? && rank > 0 }
+    return "" if ranks.length < 2
+
+    w = 180
     h = 72
     pad = 3
 
-    min_rank = data.min.to_f
-    max_rank = data.max.to_f
+    min_rank = ranks.min.to_f
+    max_rank = ranks.max.to_f
     range = (max_rank - min_rank).nonzero? || 1.0
 
-    points =
-      data.each_with_index.map do |rank, i|
+    connected = false
+    commands =
+      data.each_with_index.filter_map do |rank, i|
+        unless rank.is_a?(Numeric) && rank.finite? && rank > 0
+          connected = false
+          next
+        end
+
         x = pad + (i.to_f / (data.length - 1)) * (w - pad * 2)
         # lower rank number = better = higher on chart = smaller y in SVG
         y = pad + ((rank.to_f - min_rank) / range) * (h - pad * 2)
-        "#{x.round(1)},#{y.round(1)}"
+        command = "#{connected ? "L" : "M"}#{x.round(1)},#{y.round(1)}"
+        connected = true
+        command
       end
 
-    pts = CGI.escapeHTML(points.join(" "))
+    path = CGI.escapeHTML(commands.join(" "))
 
-    "<svg viewBox=\"0 0 #{w} #{h}\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><polyline points=\"#{pts}\" fill=\"none\" stroke=\"#ff79c6\" stroke-width=\"1.8\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/></svg>"
+    # SVG paths survive Discourse's existing sanitizer; styling lives in SCSS.
+    "<svg viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\"><path d=\"#{path}\"/></svg>"
   end
 
   def url_match
-    @url_match ||= @url.match(%r{/users/(\d+)(?:/(\w+))?})
+    @url_match ||= @uri.path.match(USER_PATH)
   end
 
   def fetch_user
+    return nil unless url_match
+
+    headers = osu_auth_header
+    return nil if headers.blank?
+
     user_id = url_match[1]
     mode = url_match[2] || "osu"
     response =
       Onebox::Helpers.fetch_response(
         "https://osu.ppy.sh/api/v2/users/#{user_id}/#{mode}",
-        headers: osu_auth_header,
+        headers: headers,
       )
-    ::MultiJson.load(response)
+    user = ::MultiJson.load(response)
+    user if user.is_a?(Hash) && user["username"].is_a?(String)
   rescue StandardError
     nil
   end

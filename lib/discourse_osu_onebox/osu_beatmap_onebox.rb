@@ -10,8 +10,11 @@ class Onebox::Engine::OsuBeatmapOnebox
   always_https
   matches_domain("osu.ppy.sh")
 
+  BEATMAPSET_PATH = %r{\A/beatmapsets/(\d+)/?\z}
+  BEATMAP_FRAGMENT = %r{\A(osu|taiko|fruits|mania)(?:/(\d+))?\z}
+
   def self.matches_path(path)
-    path.match?(%r{^/beatmapsets/\d+$})
+    path.match?(BEATMAPSET_PATH)
   end
 
   def to_html
@@ -56,7 +59,7 @@ class Onebox::Engine::OsuBeatmapOnebox
     hp = beatmap["drain"].to_f.round(1)
 
     # bar widths are capped at 100%; stars capped at 10 for display
-    bar_pct = ->(val, max = 10.0) { [(val / max * 100).round(1), 100].min }
+    bar_pct = ->(val, max = 10.0) { (val / max * 100).round(1).clamp(0, 100) }
     stars_pct = bar_pct.call(stars)
 
     bg_style = cover_url.present? ? "background-image:url('#{cover_url}');" : ""
@@ -140,33 +143,44 @@ class Onebox::Engine::OsuBeatmapOnebox
 
   private
 
-  def beatmap_id
-    uri = URI.parse(@url)
-    uri.fragment&.match(%r{/(\d+)})&.[](1)
+  def beatmap_fragment
+    @beatmap_fragment ||= @uri.fragment&.match(BEATMAP_FRAGMENT)
   end
 
   def beatmapset_id
-    @url.match(%r{/beatmapsets/(\d+)})[1]
+    @uri.path.match(BEATMAPSET_PATH)&.[](1)
   end
 
   def fetch_beatmap
-    fetch_beatmapset_and_pick(beatmapset_id, beatmap_id)
+    return nil unless beatmapset_id
+    return nil if @uri.fragment.present? && !beatmap_fragment
+
+    fetch_beatmapset_and_pick(beatmapset_id, beatmap_fragment&.[](2), beatmap_fragment&.[](1))
   end
 
-  def fetch_beatmapset_and_pick(set_id, pick_id = nil)
+  def fetch_beatmapset_and_pick(set_id, pick_id = nil, mode = nil)
+    headers = osu_auth_header
+    return nil if headers.blank?
+
     response =
       Onebox::Helpers.fetch_response(
         "https://osu.ppy.sh/api/v2/beatmapsets/#{set_id}",
-        headers: osu_auth_header,
+        headers: headers,
       )
     data = ::MultiJson.load(response)
-    beatmaps = data["beatmaps"] || []
-    diff = (beatmaps.find { |b| b["id"].to_s == pick_id.to_s } if pick_id)
-    diff ||= beatmaps.max_by { |b| b["difficulty_rating"].to_f }
+    return nil unless data.is_a?(Hash) && data["beatmaps"].is_a?(Array)
+
+    beatmaps = data["beatmaps"].select { |b| b.is_a?(Hash) }
+    beatmaps = beatmaps.select { |b| b["mode"] == mode } if mode
+    diff =
+      if pick_id
+        beatmaps.find { |b| b["id"].to_s == pick_id }
+      else
+        beatmaps.max_by { |b| b["difficulty_rating"].to_f }
+      end
     return nil unless diff
 
-    diff["beatmapset"] = data.except("beatmaps")
-    diff
+    diff.merge("beatmapset" => data.except("beatmaps"))
   rescue StandardError
     nil
   end
